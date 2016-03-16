@@ -14,6 +14,7 @@ import android.widget.Toast;
 
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
+import com.kinvey.android.callback.KinveyPurgeCallback;
 import com.kinvey.android.sync.KinveyPullCallback;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveySyncCallback;
@@ -166,6 +167,8 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 }
             });
         } else if (id == R.id.action_pull){
+            pd.setMessage("pulling");
+            pd.show();
             client.dataStore(BookDTO.COLLECTION, BookDTO.class).pull(null, new KinveyPullCallback() {
                 @Override
                 public void onSuccess(Integer result) {
@@ -180,6 +183,8 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 }
             });
         } else if (id == R.id.action_push){
+            pd.setMessage("pushing");
+            pd.show();
             client.dataStore(BookDTO.COLLECTION, BookDTO.class).push(new KinveyPushCallback() {
                 @Override
                 public void onSuccess(Integer result) {
@@ -199,9 +204,11 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 }
             });
         } else if (id == R.id.action_purge){
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).push(new KinveyPushCallback() {
+            pd.setMessage("purging");
+            pd.show();
+            client.dataStore(BookDTO.COLLECTION, BookDTO.class).purge(new KinveyPurgeCallback() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(Void result) {
                     pd.dismiss();
                     getData();
                 }
@@ -209,13 +216,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 @Override
                 public void onFailure(Throwable error) {
                     pd.dismiss();
-                    Toast.makeText(Shelf.this, "pull failed", Toast.LENGTH_LONG).show();
+                    Toast.makeText(Shelf.this, "purge failed", Toast.LENGTH_LONG).show();
                 }
 
-                @Override
-                public void onProgress(long current, long all) {
-
-                }
             });
         }
         return super.onOptionsItemSelected(item);
