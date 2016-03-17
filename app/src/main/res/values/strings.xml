@@ -8,5 +8,6 @@
     <string name="action_push">Push</string>
     <string name="action_pull">Pull</string>
     <string name="action_purge">Purge</string>
+    <string name="action_delete">delete</string>
 
 </resources>
