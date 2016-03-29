@@ -45,7 +45,8 @@ public class BooksAdapter extends BaseAdapter {
         }
 
         TextView tv = (TextView) convertView;
-        tv.setText(books.get(position).getName());
+        BookDTO book = books.get(position);
+        tv.setText(book.getName());
         return tv;
     }
 }

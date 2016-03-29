@@ -12,8 +12,10 @@ import android.widget.Toast;
 
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyDeleteCallback;
+import com.kinvey.android.store.AsyncDataStore;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
+import com.kinvey.java.store.StoreType;
 
 /**
  * Created by Prots on 3/15/16.
@@ -24,6 +26,8 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
     EditText name;
 
     BookDTO book = new BookDTO();
+
+    AsyncDataStore<BookDTO> bookStore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,6 +41,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         name = (EditText) findViewById(R.id.name);
 
         findViewById(R.id.save2).setOnClickListener(this);
+        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
     }
 
 
@@ -59,7 +64,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         final ProgressDialog pd = new ProgressDialog(this);
         if (id != null){
             pd.show();
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).find(id, new KinveyClientCallback<BookDTO>() {
+            bookStore.find(id, new KinveyClientCallback<BookDTO>() {
                 @Override
                 public void onSuccess(BookDTO bookDTO) {
                     book = bookDTO;
@@ -88,7 +93,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                     final ProgressDialog pd = new ProgressDialog(this);
                     pd.setMessage("Saving");
                     book.setName(name.getText().toString());
-                    client.dataStore(BookDTO.COLLECTION, BookDTO.class).save(book,
+                    bookStore.save(book,
                             new KinveyClientCallback<BookDTO>() {
                                 @Override
                                 public void onSuccess(BookDTO result) {
@@ -99,7 +104,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                                 @Override
                                 public void onFailure(Throwable error) {
                                     pd.dismiss();
-                                    Toast.makeText(Book.this, "Can't save: "+ error.getMessage(), Toast.LENGTH_LONG).show();
+                                    Toast.makeText(Book.this, "Can't save: " + error.getMessage(), Toast.LENGTH_LONG).show();
                                 }
                             });
                 }
@@ -118,7 +123,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_delete) {
             pd.show();
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).delete(book.get("_id").toString(), new KinveyDeleteCallback() {
+            bookStore.delete(book.get("_id").toString(), new KinveyDeleteCallback() {
                 @Override
                 public void onSuccess(Integer integer) {
                     pd.dismiss();

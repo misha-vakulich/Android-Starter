@@ -15,11 +15,13 @@ import android.widget.Toast;
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
+import com.kinvey.android.store.AsyncDataStore;
 import com.kinvey.android.sync.KinveyPullCallback;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveySyncCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
+import com.kinvey.java.store.StoreType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
     Client client;
     BooksAdapter adapter;
+    AsyncDataStore<BookDTO> bookStore;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,6 +38,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
+        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
     }
 
     @Override
@@ -43,12 +47,53 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         checkLogin();
     }
 
+    public void sync(){
+        final ProgressDialog pd = new ProgressDialog(this);
+        pd.setMessage("syncing");
+        pd.show();
+
+        bookStore.sync(new KinveySyncCallback() {
+            @Override
+            public void onSuccess() {
+                pd.dismiss();
+                Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
+                getData();
+            }
+
+            @Override
+            public void onPullStarted() {
+
+            }
+
+            @Override
+            public void onPushStarted() {
+
+            }
+
+            @Override
+            public void onPullSuccess() {
+                Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onPushSuccess() {
+                Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                pd.dismiss();
+                Toast.makeText(Shelf.this, "sync failed", Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     public void getData(){
-        client.dataStore(BookDTO.COLLECTION, BookDTO.class).find(new KinveyListCallback<BookDTO>() {
+        bookStore.find(new KinveyListCallback<BookDTO>() {
             @Override
             public void onSuccess(List<BookDTO> books) {
                 if (books == null) {
-                    books = new ArrayList<>();
+                    books = new ArrayList<BookDTO>();
                 }
 
                 ListView list = (ListView) findViewById(R.id.shelf);
@@ -80,7 +125,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 public void onSuccess(User result) {
                     //successfully logged in
                     pd.dismiss();
-                    getData();
+                    sync();
                 }
 
                 @Override
@@ -128,48 +173,11 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             startActivity(i);
             return true;
         } else if (id == R.id.action_sync){
-            pd.setMessage("syncing");
-            pd.show();
-
-
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).sync(null, new KinveySyncCallback() {
-                @Override
-                public void onSuccess() {
-                    pd.dismiss();
-                    Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
-                    getData();
-                }
-
-                @Override
-                public void onPullStarted() {
-
-                }
-
-                @Override
-                public void onPushStarted() {
-
-                }
-
-                @Override
-                public void onPullSuccess() {
-                    Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
-                }
-
-                @Override
-                public void onPushSuccess() {
-                    Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    pd.dismiss();
-                    Toast.makeText(Shelf.this, "sync failed", Toast.LENGTH_LONG).show();
-                }
-            });
+            sync();
         } else if (id == R.id.action_pull){
             pd.setMessage("pulling");
             pd.show();
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).pull(null, new KinveyPullCallback() {
+            bookStore.pull(null, new KinveyPullCallback() {
                 @Override
                 public void onSuccess(Integer result) {
                     pd.dismiss();
@@ -185,7 +193,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         } else if (id == R.id.action_push){
             pd.setMessage("pushing");
             pd.show();
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).push(new KinveyPushCallback() {
+            bookStore.push(new KinveyPushCallback() {
                 @Override
                 public void onSuccess(Integer result) {
                     pd.dismiss();
@@ -206,7 +214,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         } else if (id == R.id.action_purge){
             pd.setMessage("purging");
             pd.show();
-            client.dataStore(BookDTO.COLLECTION, BookDTO.class).purge(new KinveyPurgeCallback() {
+            bookStore.purge(new KinveyPurgeCallback() {
                 @Override
                 public void onSuccess(Void result) {
                     pd.dismiss();
