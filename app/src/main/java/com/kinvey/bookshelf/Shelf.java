@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -17,7 +18,9 @@ import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
 import com.kinvey.android.store.AsyncDataStore;
 import com.kinvey.android.sync.KinveyPullCallback;
+import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
+import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
@@ -31,13 +34,14 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
     Client client;
     BooksAdapter adapter;
     AsyncDataStore<BookDTO> bookStore;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_shelf);
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
-        client =  ((App)getApplication()).getSharedClient();
+        client = ((App) getApplication()).getSharedClient();
         bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
     }
 
@@ -47,17 +51,23 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         checkLogin();
     }
 
-    public void sync(){
+    public void sync() {
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setMessage("syncing");
         pd.show();
 
-        bookStore.sync(new KinveySyncCallback() {
+        bookStore.sync(new KinveySyncCallback<BookDTO>() {
+            @Override
+            public void onSuccess(KinveyPushResponse kinveyPushResponse, KinveyPullResponse<BookDTO> kinveyPullResponse) {
+                pd.dismiss();
+                Log.d(Shelf.class.getName(), "sync onSuccess: ");
+                updateBooksAdapter(kinveyPullResponse.getResult());
+            }
+
             @Override
             public void onSuccess() {
                 pd.dismiss();
                 Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
-                getData();
             }
 
             @Override
@@ -88,19 +98,11 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         });
     }
 
-    public void getData(){
+    public void getData() {
         bookStore.find(new KinveyListCallback<BookDTO>() {
             @Override
             public void onSuccess(List<BookDTO> books) {
-                if (books == null) {
-                    books = new ArrayList<BookDTO>();
-                }
-
-                ListView list = (ListView) findViewById(R.id.shelf);
-                list.setOnItemClickListener(Shelf.this);
-                adapter = new BooksAdapter(books, Shelf.this);
-
-                list.setAdapter(adapter);
+                updateBooksAdapter(books);
             }
 
             @Override
@@ -108,7 +110,18 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
             }
         });
+    }
 
+    private void updateBooksAdapter(List<BookDTO> books) {
+        if (books == null) {
+            books = new ArrayList<BookDTO>();
+        }
+
+        ListView list = (ListView) findViewById(R.id.shelf);
+        list.setOnItemClickListener(Shelf.this);
+        adapter = new BooksAdapter(books, Shelf.this);
+
+        list.setAdapter(adapter);
     }
 
     private void checkLogin() {
@@ -116,7 +129,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         final ProgressDialog pd = new ProgressDialog(this);
 
 
-        if (!client.userStore().isUserLoggedIn()){
+        if (!client.userStore().isUserLoggedIn()) {
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
@@ -172,16 +185,16 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             Intent i = new Intent(this, Book.class);
             startActivity(i);
             return true;
-        } else if (id == R.id.action_sync){
+        } else if (id == R.id.action_sync) {
             sync();
-        } else if (id == R.id.action_pull){
+        } else if (id == R.id.action_pull) {
             pd.setMessage("pulling");
             pd.show();
-            bookStore.pull(null, new KinveyPullCallback() {
+            bookStore.pull(null, new KinveyPullCallback<BookDTO>() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPullResponse kinveyPullResponse) {
                     pd.dismiss();
-                    getData();
+                    updateBooksAdapter(kinveyPullResponse.getResult());
                 }
 
                 @Override
@@ -190,12 +203,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                     Toast.makeText(Shelf.this, "pull failed", Toast.LENGTH_LONG).show();
                 }
             });
-        } else if (id == R.id.action_push){
+        } else if (id == R.id.action_push) {
             pd.setMessage("pushing");
             pd.show();
             bookStore.push(new KinveyPushCallback() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPushResponse kinveyPushResponse) {
                     pd.dismiss();
                     getData();
                 }
@@ -211,7 +224,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 }
             });
-        } else if (id == R.id.action_purge){
+        } else if (id == R.id.action_purge) {
             pd.setMessage("purging");
             pd.show();
             bookStore.purge(new KinveyPurgeCallback() {
