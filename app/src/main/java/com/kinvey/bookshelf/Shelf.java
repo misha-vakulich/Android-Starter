@@ -38,7 +38,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
-        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = AsyncDataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
     }
 
     @Override
