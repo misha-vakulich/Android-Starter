@@ -40,7 +40,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         name = (EditText) findViewById(R.id.name);
 
         findViewById(R.id.save2).setOnClickListener(this);
-        bookStore = AsyncDataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = AsyncDataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, true);
     }
 
 
