@@ -14,7 +14,6 @@ import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyDeleteCallback;
 import com.kinvey.android.store.AsyncDataStore;
 import com.kinvey.java.core.KinveyClientCallback;
-import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
 
 /**
@@ -41,7 +40,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         name = (EditText) findViewById(R.id.name);
 
         findViewById(R.id.save2).setOnClickListener(this);
-        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = AsyncDataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, true);
     }
 
 
