@@ -18,7 +18,9 @@ import com.kinvey.android.callback.KinveyPurgeCallback;
 import com.kinvey.android.store.AsyncDataStore;
 import com.kinvey.android.store.AsyncUserStore;
 import com.kinvey.android.sync.KinveyPullCallback;
+import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
+import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
@@ -26,6 +28,7 @@ import com.kinvey.java.store.StoreType;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickListener {
@@ -40,7 +43,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
-        bookStore = AsyncDataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, true);
+        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
     }
 
     @Override
@@ -58,7 +61,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         pd.setMessage("syncing");
         pd.show();
 
-        bookStore.sync(new KinveySyncCallback() {
+        bookStore.sync(new KinveySyncCallback<BookDTO>() {
             @Override
             public void onSuccess(Object o) {
                 pd.dismiss();
@@ -68,27 +71,23 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
             @Override
             public void onSuccess() {
-
+                Toast.makeText(Shelf.this, "onSuccess", Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onPullStarted() {
-
             }
 
             @Override
             public void onPushStarted() {
-
             }
 
             @Override
             public void onPullSuccess() {
-//                Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onPushSuccess() {
-//                Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
             }
 
             @Override
@@ -113,6 +112,21 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 list.setAdapter(adapter);
             }
+/*
+            @Override
+            public void onSuccess(BookDTO[] bookDTOs) {
+                if (bookDTOs == null) {
+                    bookDTOs = new BookDTO[0];
+                }
+                List<BookDTO> books = new ArrayList<BookDTO>();
+                Collections.addAll(books, bookDTOs);
+
+                ListView list = (ListView) findViewById(R.id.shelf);
+                list.setOnItemClickListener(Shelf.this);
+                adapter = new BooksAdapter(books, Shelf.this);
+
+                list.setAdapter(adapter);
+            }*/
 
             @Override
             public void onFailure(Throwable error) {
@@ -190,7 +204,13 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.show();
             bookStore.pull(null, new KinveyPullCallback() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPullResponse kinveyPullResponse) {
+                    pd.dismiss();
+                    getData();
+                }
+
+                @Override
+                public void onSuccess(Object o) {
                     pd.dismiss();
                     getData();
                 }
@@ -205,8 +225,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setMessage("pushing");
             pd.show();
             bookStore.push(new KinveyPushCallback() {
+
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPushResponse kinveyPushResponse) {
                     pd.dismiss();
                     getData();
                 }
