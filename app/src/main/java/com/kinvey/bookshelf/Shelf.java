@@ -54,10 +54,15 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
         bookStore.sync(new KinveySyncCallback() {
             @Override
-            public void onSuccess() {
+            public void onSuccess(Object o) {
                 pd.dismiss();
                 Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
                 getData();
+            }
+
+            @Override
+            public void onSuccess() {
+
             }
 
             @Override
@@ -72,12 +77,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
             @Override
             public void onPullSuccess() {
-                Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
+//                Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onPushSuccess() {
-                Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
+//                Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
             }
 
             @Override
