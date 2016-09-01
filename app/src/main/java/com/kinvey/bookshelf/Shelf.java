@@ -16,6 +16,7 @@ import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
 import com.kinvey.android.store.AsyncDataStore;
+import com.kinvey.android.store.AsyncUserStore;
 import com.kinvey.android.sync.KinveyPullCallback;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveySyncCallback;
@@ -23,6 +24,7 @@ import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +46,11 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
     @Override
     protected void onResume() {
         super.onResume();
-        checkLogin();
+        try {
+            checkLogin();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void sync(){
@@ -111,16 +117,16 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
     }
 
-    private void checkLogin() {
+    private void checkLogin() throws IOException {
 
         final ProgressDialog pd = new ProgressDialog(this);
 
 
-        if (!client.userStore().isUserLoggedIn()){
+        if (!client.isUserLoggedIn()){
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
-            client.userStore().login("test", "test", new KinveyClientCallback<User>() {
+            AsyncUserStore.login("test", "test", User.class, Client.sharedInstance(), new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User result) {
                     //successfully logged in
@@ -130,7 +136,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 @Override
                 public void onFailure(Throwable error) {
-                    client.userStore().create("test", "test", new KinveyClientCallback<User>() {
+                    AsyncUserStore.signUp("test", "test", User.class, Client.sharedInstance(),  new KinveyClientCallback<User>() {
                         @Override
                         public void onSuccess(User result) {
                             getData();
