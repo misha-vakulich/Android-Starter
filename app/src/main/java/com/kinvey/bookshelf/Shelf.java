@@ -62,16 +62,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         pd.show();
 
         bookStore.sync(new KinveySyncCallback<BookDTO>() {
+
             @Override
-            public void onSuccess(Object o) {
+            public void onSuccess(KinveyPushResponse kinveyPushResponse, KinveyPullResponse<BookDTO> kinveyPullResponse) {
                 pd.dismiss();
                 Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
                 getData();
-            }
-
-            @Override
-            public void onSuccess() {
-                Toast.makeText(Shelf.this, "onSuccess", Toast.LENGTH_LONG).show();
             }
 
             @Override
@@ -83,12 +79,15 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             }
 
             @Override
-            public void onPullSuccess() {
+            public void onPullSuccess(KinveyPullResponse<BookDTO> kinveyPullResponse) {
+
             }
 
             @Override
-            public void onPushSuccess() {
+            public void onPushSuccess(KinveyPushResponse kinveyPushResponse) {
+
             }
+
 
             @Override
             public void onFailure(Throwable t) {
@@ -112,21 +111,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 list.setAdapter(adapter);
             }
-/*
-            @Override
-            public void onSuccess(BookDTO[] bookDTOs) {
-                if (bookDTOs == null) {
-                    bookDTOs = new BookDTO[0];
-                }
-                List<BookDTO> books = new ArrayList<BookDTO>();
-                Collections.addAll(books, bookDTOs);
-
-                ListView list = (ListView) findViewById(R.id.shelf);
-                list.setOnItemClickListener(Shelf.this);
-                adapter = new BooksAdapter(books, Shelf.this);
-
-                list.setAdapter(adapter);
-            }*/
 
             @Override
             public void onFailure(Throwable error) {
@@ -202,15 +186,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         } else if (id == R.id.action_pull){
             pd.setMessage("pulling");
             pd.show();
-            bookStore.pull(null, new KinveyPullCallback() {
+            bookStore.pull(null, new KinveyPullCallback<BookDTO>() {
                 @Override
                 public void onSuccess(KinveyPullResponse kinveyPullResponse) {
-                    pd.dismiss();
-                    getData();
-                }
-
-                @Override
-                public void onSuccess(Object o) {
                     pd.dismiss();
                     getData();
                 }
