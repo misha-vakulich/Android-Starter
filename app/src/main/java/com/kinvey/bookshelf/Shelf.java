@@ -129,7 +129,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
-            AsyncUserStore.login("test", "test", User.class, Client.sharedInstance(), new KinveyClientCallback<User>() {
+            AsyncUserStore.login("test", "test", Client.sharedInstance(), new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User result) {
                     //successfully logged in
@@ -139,7 +139,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 @Override
                 public void onFailure(Throwable error) {
-                    AsyncUserStore.signUp("test", "test", User.class, Client.sharedInstance(),  new KinveyClientCallback<User>() {
+                    AsyncUserStore.signUp("test", "test", Client.sharedInstance(),  new KinveyClientCallback<User>() {
                         @Override
                         public void onSuccess(User result) {
                             getData();
