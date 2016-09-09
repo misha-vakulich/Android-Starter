@@ -19,6 +19,10 @@
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
 
 
+    <ScrollView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -32,12 +36,60 @@
                 android:layout_margin="10dp"
                 android:inputType="text"/>
 
+            <ImageView
+                android:src="@android:color/darker_gray"
+                android:minHeight="200dp"
+                android:minWidth="200dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/imageView"
+                android:layout_margin="10dp"
+                android:layout_gravity="center_horizontal"
+                android:contentDescription="Image" />
+
             <Button
                 android:id="@+id/save2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 android:text="SAVE"/>
+
+            <Button
+                android:id="@+id/save2cache"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="SAVE TO CACHE"/>
+
+            <Button
+                android:id="@+id/upload_from_cache"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="UPLOAD FROM CACHE"/>
+
+            <Button
+                android:id="@+id/get_from_cache"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="GET FROM CACHE"/>
+
+            <Button
+                android:id="@+id/download_from_internet"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="DOWNLOAD FROM INTERNET"/>
+
+            <Button
+                android:id="@+id/upload_to_internet"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="UPLOAD TO INTERNET"/>
+
         </LinearLayout>
 
+    </ScrollView>
 </LinearLayout>
