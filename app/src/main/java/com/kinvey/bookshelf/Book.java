@@ -7,9 +7,9 @@ import android.content.pm.PackageManager;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.HandlerThread;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -77,8 +77,10 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         findViewById(R.id.save2).setOnClickListener(this);
         findViewById(R.id.save2cache).setOnClickListener(this);
         findViewById(R.id.get_from_cache).setOnClickListener(this);
+        findViewById(R.id.clear_cache).setOnClickListener(this);
         findViewById(R.id.upload_to_internet).setOnClickListener(this);
         findViewById(R.id.download_from_internet).setOnClickListener(this);
+        findViewById(R.id.remove).setOnClickListener(this);
 
         bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
         verifyStoragePermissions(this);
@@ -151,11 +153,11 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 }
                 break;
             case R.id.upload_to_internet:
-                uploadImage();
+                uploadFileToNetwork();
                 break;
             case R.id.download_from_internet:
                 try {
-                    downloadImage();
+                    downloadFileFromNetwork();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -174,7 +176,36 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                     e.printStackTrace();
                 }
                 break;
+            case R.id.clear_cache:
+                    clearCache();
+                break;
+            case R.id.remove:
+                try {
+                    remove();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
         }
+    }
+
+    private void remove() throws IOException {
+        client.getFileStore(StoreType.NETWORK).remove(fileMetaData, new KinveyDeleteCallback() {
+            @Override
+            public void onSuccess(Integer integer) {
+                Toast.makeText(getApplication(), "remove: onSuccess", Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                Toast.makeText(getApplication(), "remove: onFailure", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void clearCache() {
+        client.getFileStore(StoreType.CACHE).clear();
+        Toast.makeText(getApplication(), "clearCache", Toast.LENGTH_SHORT).show();
     }
 
     private void getFromCache() throws IOException {
@@ -188,6 +219,8 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             public void onSuccess(FileMetaData fileMetaData) {
                 try {
                     fos.write(outputFile.getAbsolutePath().getBytes());
+                    setImage(outputFile);
+                    Toast.makeText(getApplication(), "getFromCache: onSuccess", Toast.LENGTH_SHORT).show();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -195,7 +228,10 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
             @Override
             public void onFailure(Throwable throwable) {
-
+                Toast.makeText(getApplication(), "getFromCache: onFailure", Toast.LENGTH_SHORT).show();
+                if (outputFile.exists()){
+                    outputFile.delete();
+                }
             }
         }, new DownloaderProgressListener() {
             @Override
@@ -205,12 +241,15 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
             @Override
             public void onSuccess(Void aVoid) {
-
+                Toast.makeText(getApplication(), "getFromCache: onSuccess", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-
+                Toast.makeText(getApplication(), "getFromCache: onFailure", Toast.LENGTH_SHORT).show();
+                if (outputFile.exists()){
+                    outputFile.delete();
+                }
             }
         });
     }
@@ -232,12 +271,12 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             public void onSuccess(FileMetaData metaData) {
                 fileMetaData = metaData;
                 pd.dismiss();
-                Log.d("saveToCache", " KinveyClientCallback onSuccess");
+                Toast.makeText(getApplication(), "saveToCache: onSuccess", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-
+                Toast.makeText(getApplication(), "saveToCache: onFailure", Toast.LENGTH_SHORT).show();
             }
         }, new UploaderProgressListener() {
             @Override
@@ -247,38 +286,37 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
             @Override
             public void onSuccess(FileMetaData metaData) {
-                Log.d("saveToCache", " UploaderProgressListener onSuccess");
+                Toast.makeText(getApplication(), "saveToCache: onSuccess", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-
+                Toast.makeText(getApplication(), "saveToCache: onFailure", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void downloadImage() throws IOException {
+    private void downloadFileFromNetwork() throws IOException {
         outputFile = new File(Environment.getExternalStorageDirectory() + "/Kinvey/", "test"+"NETWORK"+".jpg");
         if (!outputFile.exists()){
             outputFile.createNewFile();
         }
         final FileOutputStream fos = new FileOutputStream(outputFile);
-
         client.getFileStore(StoreType.NETWORK).download(fileMetaData, fos, new KinveyClientCallback<FileMetaData>() {
             @Override
             public void onSuccess(FileMetaData fileMetaData) {
-                Log.d("downloadImage", " KinveyClientCallback onSuccess");
+
                 try {
                     fos.write(outputFile.getAbsolutePath().getBytes());
+                    setImage(outputFile);
+                    Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                setImage(outputFile);
             }
-
             @Override
             public void onFailure(Throwable throwable) {
-                Log.d("downloadImage", " KinveyClientCallback throwable");
+                Toast.makeText(getApplication(), "downloadFileFromNetwork: onFailure", Toast.LENGTH_SHORT).show();
             }
         }, new DownloaderProgressListener() {
             @Override
@@ -288,18 +326,18 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
             @Override
             public void onSuccess(Void aVoid) {
-                Log.d("downloadImage", " DownloaderProgressListener onSuccess");
+                Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
             }
 
             @Override
             public void onFailure(Throwable throwable) {
-                Log.d("downloadImage", " DownloaderProgressListener onFailure");
+                Toast.makeText(getApplication(), "downloadFileFromNetwork: onFailure", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
 
-    private void uploadImage() {
+    private void uploadFileToNetwork() {
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setMessage("Uploading");
         pd.show();
@@ -318,12 +356,12 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 public void onSuccess(FileMetaData metaData) {
                     fileMetaData = metaData;
                     pd.dismiss();
-                    Log.d("uploadImage", " KinveyClientCallback onSuccess");
+                    Toast.makeText(getApplication(), "uploadFileToNetwork: onSuccess", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    Log.d("uploadImage", " oKinveyClientCallback onFailure");
+                    Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
                 }
             }, new UploaderProgressListener() {
@@ -336,13 +374,13 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 @Override
                 public void onSuccess(FileMetaData metaData) {
                     fileMetaData = metaData;
-                    Log.d("uploadImage", " UploaderProgressListener onSuccess");
+                    Toast.makeText(getApplication(), "uploadFileToNetwork: onSuccess", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
                 }
 
                 @Override
                 public void onFailure(Throwable throwable) {
-                    Log.d("uploadImage", " UploaderProgressListener onFailure");
+                    Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
                 }
             });

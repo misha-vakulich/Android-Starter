@@ -76,6 +76,13 @@
                 android:text="GET FROM CACHE"/>
 
             <Button
+                android:id="@+id/clear_cache"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="CLEAR CACHE"/>
+
+            <Button
                 android:id="@+id/download_from_internet"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -88,6 +95,13 @@
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 android:text="UPLOAD TO INTERNET"/>
+
+            <Button
+                android:id="@+id/remove"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:text="REMOVE"/>
 
         </LinearLayout>
 
