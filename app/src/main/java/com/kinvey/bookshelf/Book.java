@@ -3,64 +3,65 @@ package com.kinvey.bookshelf;
 import android.Manifest;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.AssetManager;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.kinvey.android.Client;
+import com.kinvey.android.callback.AsyncDownloaderProgressListener;
+import com.kinvey.android.callback.AsyncUploaderProgressListener;
 import com.kinvey.android.callback.KinveyDeleteCallback;
 import com.kinvey.android.store.AsyncDataStore;
-import com.kinvey.java.core.DownloaderProgressListener;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.core.MediaHttpDownloader;
 import com.kinvey.java.core.MediaHttpUploader;
-import com.kinvey.java.core.UploaderProgressListener;
 import com.kinvey.java.model.FileMetaData;
 import com.kinvey.java.store.StoreType;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.util.ArrayList;
 
 /**
  * Created by Prots on 3/15/16.
  */
 public class Book extends AppCompatActivity implements View.OnClickListener {
 
-    private static final String FILE_ID = "ff272245-a0d2-446d-9128-fc195e37a344";
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
+    private final int SELECT_PHOTO = 2;
     private static String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
 
-    Client client;
-
     EditText name;
     ImageView image;
+    Spinner spinner;
+    EditText imagePath;
 
+    Client client;
     BookDTO book = new BookDTO();
 
     AsyncDataStore<BookDTO> bookStore;
-    FileMetaData fileMetaData;
-    File outputFile;
-    // Storage Permissions
+    FileMetaData imageMetaData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,17 +74,25 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
         name = (EditText) findViewById(R.id.name);
         image = (ImageView) findViewById(R.id.imageView);
+        spinner = (Spinner) findViewById(R.id.story_type_spinner);
+        imagePath = (EditText) findViewById(R.id.selected_image_editText);
+        imagePath.setEnabled(false);
 
         findViewById(R.id.save2).setOnClickListener(this);
-        findViewById(R.id.save2cache).setOnClickListener(this);
-        findViewById(R.id.get_from_cache).setOnClickListener(this);
-        findViewById(R.id.clear_cache).setOnClickListener(this);
         findViewById(R.id.upload_to_internet).setOnClickListener(this);
-        findViewById(R.id.download_from_internet).setOnClickListener(this);
         findViewById(R.id.remove).setOnClickListener(this);
+        findViewById(R.id.select_image_btn).setOnClickListener(this);
 
         bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
         verifyStoragePermissions(this);
+
+        ArrayList<StoreType> storeTypes = new ArrayList<>();
+        storeTypes.add(StoreType.SYNC);
+        storeTypes.add(StoreType.CACHE);
+        storeTypes.add(StoreType.NETWORK);
+        ArrayAdapter<StoreType> spinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, storeTypes);
+        spinner.setAdapter(spinnerArrayAdapter);
+        spinner.setSelection(0);
     }
 
 
@@ -113,6 +122,11 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                     name.setText(book.getName());
                     invalidateOptionsMenu();
                     pd.dismiss();
+                    try {
+                        checkImage(book);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
@@ -155,30 +169,6 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             case R.id.upload_to_internet:
                 uploadFileToNetwork();
                 break;
-            case R.id.download_from_internet:
-                try {
-                    downloadFileFromNetwork();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                break;
-            case R.id.save2cache:
-                try {
-                    saveToCache();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                break;
-            case R.id.get_from_cache:
-                try {
-                    getFromCache();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                break;
-            case R.id.clear_cache:
-                    clearCache();
-                break;
             case R.id.remove:
                 try {
                     remove();
@@ -186,125 +176,51 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                     e.printStackTrace();
                 }
                 break;
+            case R.id.select_image_btn:
+                selectImage();
+                break;
         }
+    }
+
+    private void selectImage() {
+        Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
+        photoPickerIntent.setType("image/*");
+        startActivityForResult(photoPickerIntent, SELECT_PHOTO);
     }
 
     private void remove() throws IOException {
-        client.getFileStore(StoreType.NETWORK).remove(fileMetaData, new KinveyDeleteCallback() {
-            @Override
-            public void onSuccess(Integer integer) {
-                Toast.makeText(getApplication(), "remove: onSuccess", Toast.LENGTH_SHORT).show();
-            }
+        if (imageMetaData != null) {
+            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition()))
+                    .remove(imageMetaData, new KinveyDeleteCallback() {
+                @Override
+                public void onSuccess(Integer integer) {
+                    Toast.makeText(getApplication(), "remove: onSuccess", Toast.LENGTH_SHORT).show();
+                    setImage(null);
+                }
 
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "remove: onFailure", Toast.LENGTH_SHORT).show();
-            }
-        });
+                @Override
+                public void onFailure(Throwable throwable) {
+                    Toast.makeText(getApplication(), "remove: onFailure", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
     }
 
-    private void clearCache() {
-        client.getFileStore(StoreType.CACHE).clear();
-        Toast.makeText(getApplication(), "clearCache", Toast.LENGTH_SHORT).show();
-    }
-
-    private void getFromCache() throws IOException {
-        outputFile = new File(Environment.getExternalStorageDirectory() + "/Kinvey/", "test"+"CACHE"+".jpg");
+    private void checkImage(BookDTO book) throws IOException {
+        String imageId = book.getImageId();
+        if (imageId == null) {
+            return;
+        }
+        final File outputFile = new File(Environment.getExternalStorageDirectory() + "/Kinvey/", imageId +".jpg");
         if (!outputFile.exists()){
             outputFile.createNewFile();
         }
         final FileOutputStream fos = new FileOutputStream(outputFile);
-        client.getFileStore(StoreType.CACHE).download(fileMetaData, fos, new KinveyClientCallback<FileMetaData>() {
+        FileMetaData fileMetaDataForDownload = new FileMetaData();
+        fileMetaDataForDownload.setId(imageId);
+        client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).downloadAsync(fileMetaDataForDownload, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
             @Override
-            public void onSuccess(FileMetaData fileMetaData) {
-                try {
-                    fos.write(outputFile.getAbsolutePath().getBytes());
-                    setImage(outputFile);
-                    Toast.makeText(getApplication(), "getFromCache: onSuccess", Toast.LENGTH_SHORT).show();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "getFromCache: onFailure", Toast.LENGTH_SHORT).show();
-                if (outputFile.exists()){
-                    outputFile.delete();
-                }
-            }
-        }, new DownloaderProgressListener() {
-            @Override
-            public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
-
-            }
-
-            @Override
-            public void onSuccess(Void aVoid) {
-                Toast.makeText(getApplication(), "getFromCache: onSuccess", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "getFromCache: onFailure", Toast.LENGTH_SHORT).show();
-                if (outputFile.exists()){
-                    outputFile.delete();
-                }
-            }
-        });
-    }
-
-    private void saveToCache() throws IOException {
-        final ProgressDialog pd = new ProgressDialog(this);
-        pd.setMessage("Uploading");
-        pd.show();
-        AssetManager am = getAssets();
-        InputStream inputStream = null;
-        try {
-            inputStream = am.open("testImage.jpg");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        File file = createFileFromInputStream(inputStream);
-        client.getFileStore(StoreType.CACHE).upload(file, new KinveyClientCallback<FileMetaData>() {
-            @Override
-            public void onSuccess(FileMetaData metaData) {
-                fileMetaData = metaData;
-                pd.dismiss();
-                Toast.makeText(getApplication(), "saveToCache: onSuccess", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "saveToCache: onFailure", Toast.LENGTH_SHORT).show();
-            }
-        }, new UploaderProgressListener() {
-            @Override
-            public void progressChanged(MediaHttpUploader mediaHttpUploader) throws IOException {
-
-            }
-
-            @Override
-            public void onSuccess(FileMetaData metaData) {
-                Toast.makeText(getApplication(), "saveToCache: onSuccess", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "saveToCache: onFailure", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void downloadFileFromNetwork() throws IOException {
-        outputFile = new File(Environment.getExternalStorageDirectory() + "/Kinvey/", "test"+"NETWORK"+".jpg");
-        if (!outputFile.exists()){
-            outputFile.createNewFile();
-        }
-        final FileOutputStream fos = new FileOutputStream(outputFile);
-        client.getFileStore(StoreType.NETWORK).download(fileMetaData, fos, new KinveyClientCallback<FileMetaData>() {
-            @Override
-            public void onSuccess(FileMetaData fileMetaData) {
+            public void onSuccess(FileMetaData imageMetaData) {
 
                 try {
                     fos.write(outputFile.getAbsolutePath().getBytes());
@@ -318,20 +234,10 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             public void onFailure(Throwable throwable) {
                 Toast.makeText(getApplication(), "downloadFileFromNetwork: onFailure", Toast.LENGTH_SHORT).show();
             }
-        }, new DownloaderProgressListener() {
+
             @Override
             public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
 
-            }
-
-            @Override
-            public void onSuccess(Void aVoid) {
-                Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Toast.makeText(getApplication(), "downloadFileFromNetwork: onFailure", Toast.LENGTH_SHORT).show();
             }
         });
     }
@@ -341,22 +247,17 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setMessage("Uploading");
         pd.show();
-        AssetManager am = getAssets();
-        InputStream inputStream = null;
-        try {
-            inputStream = am.open("testImage.jpg");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        File file = createFileFromInputStream(inputStream);
+        final File file = new File(imagePath.getText().toString());
         try {
             assert file != null;
-            client.getFileStore(StoreType.NETWORK).upload(file, new KinveyClientCallback<FileMetaData>() {
+            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).uploadAsync(file, new AsyncUploaderProgressListener<FileMetaData>() {
                 @Override
                 public void onSuccess(FileMetaData metaData) {
-                    fileMetaData = metaData;
+                    imageMetaData = metaData;
                     pd.dismiss();
                     Toast.makeText(getApplication(), "uploadFileToNetwork: onSuccess", Toast.LENGTH_SHORT).show();
+                    setImage(file);
+                    book.setImageId(imageMetaData.getId());
                 }
 
                 @Override
@@ -364,52 +265,15 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                     Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
                 }
-            }, new UploaderProgressListener() {
+
                 @Override
                 public void progressChanged(MediaHttpUploader mediaHttpUploader) throws IOException {
 
-                    Log.d("progressChanged", " progress: " + mediaHttpUploader.getProgress());
-                }
-
-                @Override
-                public void onSuccess(FileMetaData metaData) {
-                    fileMetaData = metaData;
-                    Toast.makeText(getApplication(), "uploadFileToNetwork: onSuccess", Toast.LENGTH_SHORT).show();
-                    pd.dismiss();
-                }
-
-                @Override
-                public void onFailure(Throwable throwable) {
-                    Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
-                    pd.dismiss();
                 }
             });
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private File createFileFromInputStream(InputStream inputStream) {
-
-        try{
-            File f = new File(getCacheDir(), "testImage.jpg");
-            OutputStream outputStream = new FileOutputStream(f);
-            byte buffer[] = new byte[2048];
-            int length = 0;
-
-            while((length=inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer,0,length);
-            }
-
-            outputStream.close();
-            inputStream.close();
-
-            return f;
-        }catch (IOException e) {
-            //Logging exception
-        }
-
-        return null;
     }
 
     @Override
@@ -442,7 +306,8 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
     }
 
     private void setImage(File file) {
-        if(file.exists()){
+        image.setImageResource(0);
+        if(file != null && file.exists()){
             Bitmap myBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
             image.setImageBitmap(myBitmap);
         }
@@ -469,4 +334,32 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             );
         }
     }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent imageReturnedIntent) {
+        super.onActivityResult(requestCode, resultCode, imageReturnedIntent);
+
+        switch(requestCode) {
+            case SELECT_PHOTO:
+                if(resultCode == RESULT_OK){
+                        final Uri imageUri = imageReturnedIntent.getData();
+                        imagePath.setText(getRealPathFromURI(imageUri));
+                }
+        }
+    }
+
+    private String getRealPathFromURI(Uri contentURI) {
+        String result;
+        Cursor cursor = getContentResolver().query(contentURI, null, null, null, null);
+        if (cursor == null) {
+            result = contentURI.getPath();
+        } else {
+            cursor.moveToFirst();
+            int idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA);
+            result = cursor.getString(idx);
+            cursor.close();
+        }
+        return result;
+    }
+
 }
