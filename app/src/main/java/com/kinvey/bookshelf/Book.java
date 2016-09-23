@@ -220,11 +220,12 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         fileMetaDataForDownload.setId(imageId);
         client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).downloadAsync(fileMetaDataForDownload, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
             @Override
-            public void onSuccess(FileMetaData imageMetaData) {
+            public void onSuccess(FileMetaData metaData) {
 
                 try {
                     fos.write(outputFile.getAbsolutePath().getBytes());
                     setImage(outputFile);
+                    imageMetaData = metaData;
                     Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
                 } catch (IOException e) {
                     e.printStackTrace();
