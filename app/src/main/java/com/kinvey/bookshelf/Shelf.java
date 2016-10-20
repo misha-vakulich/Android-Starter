@@ -15,8 +15,8 @@ import android.widget.Toast;
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
-import com.kinvey.android.store.AsyncDataStore;
-import com.kinvey.android.store.AsyncUserStore;
+import com.kinvey.android.store.DataStore;
+import com.kinvey.android.store.UserStore;
 import com.kinvey.android.sync.KinveyPullCallback;
 import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
@@ -28,14 +28,13 @@ import com.kinvey.java.store.StoreType;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
     Client client;
     BooksAdapter adapter;
-    AsyncDataStore<BookDTO> bookStore;
+    DataStore<BookDTO> bookStore;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -43,7 +42,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
-        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, client);
     }
 
     @Override
@@ -62,7 +61,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         pd.show();
 
         bookStore.sync(new KinveySyncCallback<BookDTO>() {
-
             @Override
             public void onSuccess(KinveyPushResponse kinveyPushResponse, KinveyPullResponse<BookDTO> kinveyPullResponse) {
                 pd.dismiss();
@@ -72,10 +70,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
             @Override
             public void onPullStarted() {
+
             }
 
             @Override
             public void onPushStarted() {
+
             }
 
             @Override
@@ -87,7 +87,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             public void onPushSuccess(KinveyPushResponse kinveyPushResponse) {
 
             }
-
 
             @Override
             public void onFailure(Throwable t) {
@@ -129,7 +128,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
-            AsyncUserStore.login("test", "test", Client.sharedInstance(), new KinveyClientCallback<User>() {
+            UserStore.login("test", "test", client, new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User result) {
                     //successfully logged in
@@ -139,9 +138,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 @Override
                 public void onFailure(Throwable error) {
-                    AsyncUserStore.signUp("test", "test", Client.sharedInstance(),  new KinveyClientCallback<User>() {
+                    UserStore.signUp("test", "test", client, new KinveyClientCallback<User>() {
                         @Override
-                        public void onSuccess(User result) {
+                        public void onSuccess(User o) {
                             getData();
                             pd.dismiss();
                         }
@@ -191,6 +190,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 public void onSuccess(KinveyPullResponse kinveyPullResponse) {
                     pd.dismiss();
                     getData();
+                    Toast.makeText(Shelf.this, "pull success", Toast.LENGTH_LONG).show();
                 }
 
                 @Override
@@ -203,17 +203,16 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setMessage("pushing");
             pd.show();
             bookStore.push(new KinveyPushCallback() {
-
                 @Override
                 public void onSuccess(KinveyPushResponse kinveyPushResponse) {
                     pd.dismiss();
-                    getData();
+                    Toast.makeText(Shelf.this, "push success", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onFailure(Throwable error) {
                     pd.dismiss();
-                    Toast.makeText(Shelf.this, "pull failed", Toast.LENGTH_LONG).show();
+                    Toast.makeText(Shelf.this, "push failed", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
@@ -229,6 +228,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 public void onSuccess(Void result) {
                     pd.dismiss();
                     getData();
+                    Toast.makeText(Shelf.this, "purge success", Toast.LENGTH_LONG).show();
                 }
 
                 @Override
