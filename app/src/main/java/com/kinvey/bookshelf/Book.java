@@ -28,7 +28,7 @@ import com.kinvey.android.Client;
 import com.kinvey.android.callback.AsyncDownloaderProgressListener;
 import com.kinvey.android.callback.AsyncUploaderProgressListener;
 import com.kinvey.android.callback.KinveyDeleteCallback;
-import com.kinvey.android.store.AsyncDataStore;
+import com.kinvey.android.store.DataStore;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.core.MediaHttpDownloader;
 import com.kinvey.java.core.MediaHttpUploader;
@@ -60,7 +60,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
     Client client;
     BookDTO book = new BookDTO();
 
-    AsyncDataStore<BookDTO> bookStore;
+    DataStore<BookDTO> bookStore;
     FileMetaData imageMetaData;
 
     @Override
@@ -83,7 +83,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         findViewById(R.id.remove).setOnClickListener(this);
         findViewById(R.id.select_image_btn).setOnClickListener(this);
 
-        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, client);
         verifyStoragePermissions(this);
 
         ArrayList<StoreType> storeTypes = new ArrayList<>();
@@ -218,7 +218,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         final FileOutputStream fos = new FileOutputStream(outputFile);
         FileMetaData fileMetaDataForDownload = new FileMetaData();
         fileMetaDataForDownload.setId(imageId);
-        client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).downloadAsync(fileMetaDataForDownload, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
+        client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).download(fileMetaDataForDownload, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
             @Override
             public void onSuccess(FileMetaData metaData) {
 
@@ -251,7 +251,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         final File file = new File(imagePath.getText().toString());
         try {
             assert file != null;
-            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).uploadAsync(file, new AsyncUploaderProgressListener<FileMetaData>() {
+            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).upload(file, new AsyncUploaderProgressListener<FileMetaData>() {
                 @Override
                 public void onSuccess(FileMetaData metaData) {
                     imageMetaData = metaData;
