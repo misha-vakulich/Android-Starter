@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -22,6 +23,7 @@ import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
+import com.kinvey.java.cache.KinveyCachedClientCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
@@ -42,7 +44,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
-        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, client);
+        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.CACHE, client);
     }
 
     @Override
@@ -100,23 +102,34 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         bookStore.find(new KinveyListCallback<BookDTO>() {
             @Override
             public void onSuccess(List<BookDTO> books) {
-                if (books == null) {
-                    books = new ArrayList<BookDTO>();
-                }
-
-                ListView list = (ListView) findViewById(R.id.shelf);
-                list.setOnItemClickListener(Shelf.this);
-                adapter = new BooksAdapter(books, Shelf.this);
-
-                list.setAdapter(adapter);
+                updateBookAdapter(books);
             }
 
             @Override
             public void onFailure(Throwable error) {
+            }
+        }, new KinveyCachedClientCallback<List<BookDTO>>() {
+            @Override
+            public void onSuccess(final List<BookDTO> books) {
+                Log.d("CachedClientCallback: ", "success");
+                updateBookAdapter(books);
+            }
 
+            @Override
+            public void onFailure(Throwable throwable) {
+                Log.d("CachedClientCallback: ", "failure");
             }
         });
+    }
 
+    private void updateBookAdapter(List<BookDTO> books) {
+        if (books == null) {
+            books = new ArrayList<BookDTO>();
+        }
+        ListView list = (ListView) findViewById(R.id.shelf);
+        list.setOnItemClickListener(Shelf.this);
+        adapter = new BooksAdapter(books, Shelf.this);
+        list.setAdapter(adapter);
     }
 
     private void checkLogin() throws IOException {

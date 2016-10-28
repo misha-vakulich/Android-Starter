@@ -15,6 +15,7 @@ import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,10 +26,11 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.kinvey.android.Client;
-import com.kinvey.android.callback.AsyncDownloaderProgressListener;
 import com.kinvey.android.callback.AsyncUploaderProgressListener;
 import com.kinvey.android.callback.KinveyDeleteCallback;
 import com.kinvey.android.store.DataStore;
+import com.kinvey.java.cache.KinveyCachedClientCallback;
+import com.kinvey.android.callback.AsyncDownloaderProgressListener;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.core.MediaHttpDownloader;
 import com.kinvey.java.core.MediaHttpUploader;
@@ -83,7 +85,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         findViewById(R.id.remove).setOnClickListener(this);
         findViewById(R.id.select_image_btn).setOnClickListener(this);
 
-        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC, client);
+        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.CACHE, client);
         verifyStoragePermissions(this);
 
         ArrayList<StoreType> storeTypes = new ArrayList<>();
@@ -92,7 +94,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         storeTypes.add(StoreType.NETWORK);
         ArrayAdapter<StoreType> spinnerArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, storeTypes);
         spinner.setAdapter(spinnerArrayAdapter);
-        spinner.setSelection(0);
+        spinner.setSelection(1);
     }
 
 
@@ -132,6 +134,16 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 @Override
                 public void onFailure(Throwable throwable) {
                     pd.dismiss();
+                }
+            }, new KinveyCachedClientCallback<BookDTO>() {
+                @Override
+                public void onSuccess(BookDTO bookDTO) {
+                    Log.d("CachedClientCallback: ", "success");
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    Log.d("CachedClientCallback: ", "failure");
                 }
             });
         }
@@ -239,6 +251,16 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             @Override
             public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
 
+            }
+        }, new KinveyCachedClientCallback<FileMetaData>() {
+            @Override
+            public void onSuccess(FileMetaData fileMetaData) {
+                Log.d("CachedClientCallback: ", "success");
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                Log.d("CachedClientCallback: ", "failure");
             }
         });
     }
