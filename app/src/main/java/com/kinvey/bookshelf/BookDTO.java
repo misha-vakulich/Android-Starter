@@ -12,6 +12,9 @@ public class BookDTO extends GenericJson {
     @Key("name")
     private String name;
 
+    @Key("image_id")
+    private String imageId;
+
     public BookDTO(){};
 
     public BookDTO(String name){
@@ -24,5 +27,13 @@ public class BookDTO extends GenericJson {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getImageId() {
+        return imageId;
+    }
+
+    public void setImageId(String imageId) {
+        this.imageId = imageId;
     }
 }

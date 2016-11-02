@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,14 +16,19 @@ import android.widget.Toast;
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
-import com.kinvey.android.store.AsyncDataStore;
+import com.kinvey.android.store.DataStore;
+import com.kinvey.android.store.UserStore;
 import com.kinvey.android.sync.KinveyPullCallback;
+import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
+import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
+import com.kinvey.java.cache.KinveyCachedClientCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +36,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
     Client client;
     BooksAdapter adapter;
-    AsyncDataStore<BookDTO> bookStore;
+    DataStore<BookDTO> bookStore;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -38,13 +44,17 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
-        bookStore = client.dataStore(BookDTO.COLLECTION, BookDTO.class, StoreType.SYNC);
+        bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.CACHE, client);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        checkLogin();
+        try {
+            checkLogin();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void sync(){
@@ -52,9 +62,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         pd.setMessage("syncing");
         pd.show();
 
-        bookStore.sync(new KinveySyncCallback() {
+        bookStore.sync(new KinveySyncCallback<BookDTO>() {
             @Override
-            public void onSuccess() {
+            public void onSuccess(KinveyPushResponse kinveyPushResponse, KinveyPullResponse<BookDTO> kinveyPullResponse) {
                 pd.dismiss();
                 Toast.makeText(Shelf.this, "sync complete", Toast.LENGTH_LONG).show();
                 getData();
@@ -71,13 +81,13 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             }
 
             @Override
-            public void onPullSuccess() {
-                Toast.makeText(Shelf.this, "pull complete", Toast.LENGTH_LONG).show();
+            public void onPullSuccess(KinveyPullResponse<BookDTO> kinveyPullResponse) {
+
             }
 
             @Override
-            public void onPushSuccess() {
-                Toast.makeText(Shelf.this, "push complete", Toast.LENGTH_LONG).show();
+            public void onPushSuccess(KinveyPushResponse kinveyPushResponse) {
+
             }
 
             @Override
@@ -92,35 +102,46 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         bookStore.find(new KinveyListCallback<BookDTO>() {
             @Override
             public void onSuccess(List<BookDTO> books) {
-                if (books == null) {
-                    books = new ArrayList<BookDTO>();
-                }
-
-                ListView list = (ListView) findViewById(R.id.shelf);
-                list.setOnItemClickListener(Shelf.this);
-                adapter = new BooksAdapter(books, Shelf.this);
-
-                list.setAdapter(adapter);
+                updateBookAdapter(books);
             }
 
             @Override
             public void onFailure(Throwable error) {
+            }
+        }, new KinveyCachedClientCallback<List<BookDTO>>() {
+            @Override
+            public void onSuccess(final List<BookDTO> books) {
+                Log.d("CachedClientCallback: ", "success");
+                updateBookAdapter(books);
+            }
 
+            @Override
+            public void onFailure(Throwable throwable) {
+                Log.d("CachedClientCallback: ", "failure");
             }
         });
-
     }
 
-    private void checkLogin() {
+    private void updateBookAdapter(List<BookDTO> books) {
+        if (books == null) {
+            books = new ArrayList<BookDTO>();
+        }
+        ListView list = (ListView) findViewById(R.id.shelf);
+        list.setOnItemClickListener(Shelf.this);
+        adapter = new BooksAdapter(books, Shelf.this);
+        list.setAdapter(adapter);
+    }
+
+    private void checkLogin() throws IOException {
 
         final ProgressDialog pd = new ProgressDialog(this);
 
 
-        if (!client.userStore().isUserLoggedIn()){
+        if (!client.isUserLoggedIn()){
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
-            client.userStore().login("test", "test", new KinveyClientCallback<User>() {
+            UserStore.login("test", "test", client, new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User result) {
                     //successfully logged in
@@ -130,9 +151,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
                 @Override
                 public void onFailure(Throwable error) {
-                    client.userStore().create("test", "test", new KinveyClientCallback<User>() {
+                    UserStore.signUp("test", "test", client, new KinveyClientCallback<User>() {
                         @Override
-                        public void onSuccess(User result) {
+                        public void onSuccess(User o) {
                             getData();
                             pd.dismiss();
                         }
@@ -177,11 +198,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         } else if (id == R.id.action_pull){
             pd.setMessage("pulling");
             pd.show();
-            bookStore.pull(null, new KinveyPullCallback() {
+            bookStore.pull(null, new KinveyPullCallback<BookDTO>() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPullResponse kinveyPullResponse) {
                     pd.dismiss();
                     getData();
+                    Toast.makeText(Shelf.this, "pull success", Toast.LENGTH_LONG).show();
                 }
 
                 @Override
@@ -195,15 +217,15 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.show();
             bookStore.push(new KinveyPushCallback() {
                 @Override
-                public void onSuccess(Integer result) {
+                public void onSuccess(KinveyPushResponse kinveyPushResponse) {
                     pd.dismiss();
-                    getData();
+                    Toast.makeText(Shelf.this, "push success", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
                 public void onFailure(Throwable error) {
                     pd.dismiss();
-                    Toast.makeText(Shelf.this, "pull failed", Toast.LENGTH_LONG).show();
+                    Toast.makeText(Shelf.this, "push failed", Toast.LENGTH_SHORT).show();
                 }
 
                 @Override
@@ -219,6 +241,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 public void onSuccess(Void result) {
                     pd.dismiss();
                     getData();
+                    Toast.makeText(Shelf.this, "purge success", Toast.LENGTH_LONG).show();
                 }
 
                 @Override
