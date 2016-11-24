@@ -23,7 +23,6 @@ import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
-import com.kinvey.java.cache.KinveyCachedClientCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
@@ -44,6 +43,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
+        client.enableDebugLogging();
         bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.CACHE, client);
     }
 
@@ -107,17 +107,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
             @Override
             public void onFailure(Throwable error) {
-            }
-        }, new KinveyCachedClientCallback<List<BookDTO>>() {
-            @Override
-            public void onSuccess(final List<BookDTO> books) {
-                Log.d("CachedClientCallback: ", "success");
-                updateBookAdapter(books);
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Log.d("CachedClientCallback: ", "failure");
             }
         });
     }

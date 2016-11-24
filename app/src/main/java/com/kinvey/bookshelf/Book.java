@@ -2,7 +2,9 @@ package com.kinvey.bookshelf;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
@@ -13,9 +15,11 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -29,11 +33,13 @@ import com.kinvey.android.Client;
 import com.kinvey.android.callback.AsyncUploaderProgressListener;
 import com.kinvey.android.callback.KinveyDeleteCallback;
 import com.kinvey.android.store.DataStore;
-import com.kinvey.java.cache.KinveyCachedClientCallback;
 import com.kinvey.android.callback.AsyncDownloaderProgressListener;
+import com.kinvey.java.KinveyException;
+import com.kinvey.java.UploadFileException;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.core.MediaHttpDownloader;
 import com.kinvey.java.core.MediaHttpUploader;
+import com.kinvey.java.core.UploaderProgressListener;
 import com.kinvey.java.model.FileMetaData;
 import com.kinvey.java.store.StoreType;
 
@@ -41,6 +47,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Created by Prots on 3/15/16.
@@ -64,6 +71,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
     DataStore<BookDTO> bookStore;
     FileMetaData imageMetaData;
+    private String generatedID;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -135,16 +143,6 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 public void onFailure(Throwable throwable) {
                     pd.dismiss();
                 }
-            }, new KinveyCachedClientCallback<BookDTO>() {
-                @Override
-                public void onSuccess(BookDTO bookDTO) {
-                    Log.d("CachedClientCallback: ", "success");
-                }
-
-                @Override
-                public void onFailure(Throwable throwable) {
-                    Log.d("CachedClientCallback: ", "failure");
-                }
             });
         }
 
@@ -179,7 +177,16 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 }
                 break;
             case R.id.upload_to_internet:
-                uploadFileToNetwork();
+
+
+                final File file = new File(imagePath.getText().toString());
+
+                FileMetaData metaData = new FileMetaData();
+                metaData.setFileName(file.getName());
+                metaData.setSize(file.length());
+                metaData.setPath(imagePath.getText().toString());
+
+                uploadFileToNetwork(file, metaData);
                 break;
             case R.id.remove:
                 try {
@@ -224,8 +231,18 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             return;
         }
         final File outputFile = new File(Environment.getExternalStorageDirectory() + "/Kinvey/", imageId +".jpg");
+        File outputDir = new File(Environment.getExternalStorageDirectory() + "/Kinvey/");
+        if (!outputDir.exists()) {
+            Log.d("outputDir created:", String.valueOf(outputDir.mkdirs()));
+        } else {
+            Log.d("outputDir exist: ", "true");
+        }
         if (!outputFile.exists()){
-            outputFile.createNewFile();
+            if (!outputDir.exists()) {
+                Log.d("outputFile created:", String.valueOf(outputFile.createNewFile()));
+            } else {
+                Log.d("outputFile exist: ", "true");
+            }
         }
         final FileOutputStream fos = new FileOutputStream(outputFile);
         FileMetaData fileMetaDataForDownload = new FileMetaData();
@@ -252,31 +269,36 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
 
             }
-        }, new KinveyCachedClientCallback<FileMetaData>() {
-            @Override
-            public void onSuccess(FileMetaData fileMetaData) {
-                Log.d("CachedClientCallback: ", "success");
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Log.d("CachedClientCallback: ", "failure");
-            }
         });
     }
 
+    private void showResumeUploadDialog(final File file, final FileMetaData metaData) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Could you resume upload")
+                .setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        uploadFileToNetwork(file, metaData);
+                    }
+                });
 
-    private void uploadFileToNetwork() {
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+
+    private void uploadFileToNetwork(final File file, final FileMetaData metaData) {
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setMessage("Uploading");
         pd.show();
-        final File file = new File(imagePath.getText().toString());
+
         try {
             assert file != null;
-            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).upload(file, new AsyncUploaderProgressListener<FileMetaData>() {
+            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).upload(file, metaData, new AsyncUploaderProgressListener<FileMetaData>() {
                 @Override
                 public void onSuccess(FileMetaData metaData) {
                     imageMetaData = metaData;
+                    Log.d("Book onSuccess fileID:", metaData.getId());
                     pd.dismiss();
                     Toast.makeText(getApplication(), "uploadFileToNetwork: onSuccess", Toast.LENGTH_SHORT).show();
                     setImage(file);
@@ -285,13 +307,22 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
                 @Override
                 public void onFailure(Throwable throwable) {
+                    FileMetaData data = null;
+                    if (throwable instanceof UploadFileException) {
+                        data = ((UploadFileException) throwable).getUploadedFileMetaData();
+                        Log.d("Book onSuccess fileID:", data.getId());
+                    }
                     Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
+
+                    showResumeUploadDialog(file, data);
+
                 }
 
                 @Override
                 public void progressChanged(MediaHttpUploader mediaHttpUploader) throws IOException {
 
+                    Log.d("Book", String.valueOf(mediaHttpUploader.getProgress()));
                 }
             });
         } catch (IOException e) {
