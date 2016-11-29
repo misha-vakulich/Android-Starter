@@ -2,14 +2,13 @@ package com.kinvey.bookshelf;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -19,7 +18,6 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -30,16 +28,16 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.kinvey.android.Client;
+import com.kinvey.android.callback.AsyncDownloaderProgressListener;
 import com.kinvey.android.callback.AsyncUploaderProgressListener;
 import com.kinvey.android.callback.KinveyDeleteCallback;
 import com.kinvey.android.store.DataStore;
-import com.kinvey.android.callback.AsyncDownloaderProgressListener;
-import com.kinvey.java.KinveyException;
-import com.kinvey.java.UploadFileException;
+import com.kinvey.android.store.FileStore;
+import com.kinvey.java.KinveyDownloadFileException;
+import com.kinvey.java.KinveyUploadFileException;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.core.MediaHttpDownloader;
 import com.kinvey.java.core.MediaHttpUploader;
-import com.kinvey.java.core.UploaderProgressListener;
 import com.kinvey.java.model.FileMetaData;
 import com.kinvey.java.store.StoreType;
 
@@ -47,7 +45,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.UUID;
 
 /**
  * Created by Prots on 3/15/16.
@@ -72,6 +69,8 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
     DataStore<BookDTO> bookStore;
     FileMetaData imageMetaData;
     private String generatedID;
+    FileStore fileStore;
+    boolean isCancelled = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -184,6 +183,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 FileMetaData metaData = new FileMetaData();
                 metaData.setFileName(file.getName());
                 metaData.setSize(file.length());
+                metaData.setPublic(false);
                 metaData.setPath(imagePath.getText().toString());
 
                 uploadFileToNetwork(file, metaData);
@@ -225,7 +225,7 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
         }
     }
 
-    private void checkImage(BookDTO book) throws IOException {
+    private void checkImage(final BookDTO book) throws IOException {
         String imageId = book.getImageId();
         if (imageId == null) {
             return;
@@ -244,32 +244,96 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 Log.d("outputFile exist: ", "true");
             }
         }
-        final FileOutputStream fos = new FileOutputStream(outputFile);
+
         FileMetaData fileMetaDataForDownload = new FileMetaData();
         fileMetaDataForDownload.setId(imageId);
-        client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).download(fileMetaDataForDownload, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
+        final FileOutputStream fos = new FileOutputStream(outputFile);
+        downloadFile(fileMetaDataForDownload, fos, outputFile);
+    }
+
+    private void downloadFile(final FileMetaData metaData, final FileOutputStream fos, final File outputFile) throws IOException {
+        isCancelled = false;
+        final ProgressDialog pd = new ProgressDialog(this);
+        pd.setMessage("Downloading");
+        pd.show();
+        fileStore = client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition()));
+        fileStore.download(metaData, fos, new AsyncDownloaderProgressListener<FileMetaData>() {
             @Override
             public void onSuccess(FileMetaData metaData) {
-
-                try {
-                    fos.write(outputFile.getAbsolutePath().getBytes());
-                    setImage(outputFile);
-                    imageMetaData = metaData;
-                    Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if (metaData != null) {
+                    try {
+                        fos.write(outputFile.getAbsolutePath().getBytes());
+                        setImage(outputFile);
+                        imageMetaData = metaData;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
+                Toast.makeText(getApplication(), "downloadFileFromNetwork: onSuccess", Toast.LENGTH_SHORT).show();
+                pd.dismiss();
+
             }
             @Override
             public void onFailure(Throwable throwable) {
+                if (throwable instanceof KinveyDownloadFileException) {
+                    FileMetaData fm = ((KinveyDownloadFileException) throwable).getDownloadedFileMetaData();
+                    Log.d("Book onFailure fileID:", fm.getId());
+                    showResumeDownloadDialog(fm, fos, outputFile);
+                } else {
+                    showResumeDownloadDialog(metaData, fos, outputFile);
+                }
                 Toast.makeText(getApplication(), "downloadFileFromNetwork: onFailure", Toast.LENGTH_SHORT).show();
+                pd.dismiss();
             }
 
             @Override
             public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
+                Log.d("Book downloading: ", String.valueOf(mediaHttpDownloader.getProgress()));
+            }
 
+            @Override
+            public boolean isCancelled() {
+                return isCancelled;
+            }
+
+            @Override
+            public void onCancelled() {
+                pd.dismiss();
+                Toast.makeText(getApplication(), "Downloading has been cancelled", Toast.LENGTH_SHORT).show();
             }
         });
+        pd.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isCancelled = true;
+                fileStore.cancelDownloading();
+            }
+        });
+    }
+
+    private void showResumeDownloadDialog(final FileMetaData metaData, final FileOutputStream fos, final File outputFile) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Could you resume downloading")
+                .setNeutralButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        try {
+                            downloadFile(metaData, fos, outputFile);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                })
+        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                boolean canceled = client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).cancelDownloading();
+                Log.d("Book downloading:", "canceled: " + canceled);
+            }
+        });
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private void showResumeUploadDialog(final File file, final FileMetaData metaData) {
@@ -288,13 +352,15 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
 
 
     private void uploadFileToNetwork(final File file, final FileMetaData metaData) {
+        isCancelled = false;
         final ProgressDialog pd = new ProgressDialog(this);
         pd.setMessage("Uploading");
         pd.show();
 
         try {
             assert file != null;
-            client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition())).upload(file, metaData, new AsyncUploaderProgressListener<FileMetaData>() {
+            fileStore = client.getFileStore((StoreType) spinner.getAdapter().getItem(spinner.getSelectedItemPosition()));
+            fileStore.upload(file, metaData, new AsyncUploaderProgressListener<FileMetaData>() {
                 @Override
                 public void onSuccess(FileMetaData metaData) {
                     imageMetaData = metaData;
@@ -308,26 +374,44 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 @Override
                 public void onFailure(Throwable throwable) {
                     FileMetaData data = null;
-                    if (throwable instanceof UploadFileException) {
-                        data = ((UploadFileException) throwable).getUploadedFileMetaData();
-                        Log.d("Book onSuccess fileID:", data.getId());
+                    if (throwable instanceof KinveyUploadFileException) {
+                        data = ((KinveyUploadFileException) throwable).getUploadedFileMetaData();
+                        Log.d("Book onFailure fileID:", data.getId());
                     }
                     Toast.makeText(getApplication(), "uploadFileToNetwork: onFailure", Toast.LENGTH_SHORT).show();
                     pd.dismiss();
-
+                    Log.d("Book onFailure _Url:", data != null ? data.getUploadUrl() : "null");
                     showResumeUploadDialog(file, data);
 
                 }
 
                 @Override
                 public void progressChanged(MediaHttpUploader mediaHttpUploader) throws IOException {
+                    Log.d("Book uploading", String.valueOf(mediaHttpUploader.getProgress()));
+                }
 
-                    Log.d("Book", String.valueOf(mediaHttpUploader.getProgress()));
+                @Override
+                public boolean isCancelled() {
+                    return isCancelled;
+                }
+
+                @Override
+                public void onCancelled() {
+                    pd.dismiss();
+                    Toast.makeText(getApplication(), "Uploading has been cancelled", Toast.LENGTH_SHORT).show();
                 }
             });
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        pd.setOnCancelListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialogInterface) {
+                isCancelled = true;
+                fileStore.cancelUploading();
+            }
+        });
     }
 
     @Override
@@ -362,8 +446,10 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
     private void setImage(File file) {
         image.setImageResource(0);
         if(file != null && file.exists()){
-            Bitmap myBitmap = BitmapFactory.decodeFile(file.getAbsolutePath());
-            image.setImageBitmap(myBitmap);
+            Bitmap d = new BitmapDrawable(this.getResources() , file.getAbsolutePath()).getBitmap();
+            int nh = (int) ( d.getHeight() * (512.0 / d.getWidth()) );
+            Bitmap scaled = Bitmap.createScaledBitmap(d, 512, nh, true);
+            image.setImageBitmap(scaled);
         }
     }
 
