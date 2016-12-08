@@ -23,7 +23,6 @@ import com.kinvey.android.sync.KinveyPullResponse;
 import com.kinvey.android.sync.KinveyPushCallback;
 import com.kinvey.android.sync.KinveyPushResponse;
 import com.kinvey.android.sync.KinveySyncCallback;
-import com.kinvey.java.cache.KinveyCachedClientCallback;
 import com.kinvey.java.core.KinveyClientCallback;
 import com.kinvey.java.dto.User;
 import com.kinvey.java.store.StoreType;
@@ -44,17 +43,14 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client =  ((App)getApplication()).getSharedClient();
+        client.enableDebugLogging();
         bookStore = DataStore.collection(BookDTO.COLLECTION, BookDTO.class, StoreType.CACHE, client);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        try {
-            checkLogin();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        sync();
     }
 
     public void sync(){
@@ -108,17 +104,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             @Override
             public void onFailure(Throwable error) {
             }
-        }, new KinveyCachedClientCallback<List<BookDTO>>() {
-            @Override
-            public void onSuccess(final List<BookDTO> books) {
-                Log.d("CachedClientCallback: ", "success");
-                updateBookAdapter(books);
-            }
-
-            @Override
-            public void onFailure(Throwable throwable) {
-                Log.d("CachedClientCallback: ", "failure");
-            }
         });
     }
 
@@ -132,45 +117,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         list.setAdapter(adapter);
     }
 
-    private void checkLogin() throws IOException {
 
-        final ProgressDialog pd = new ProgressDialog(this);
-
-
-        if (!client.isUserLoggedIn()){
-            pd.setIndeterminate(true);
-            pd.setMessage("Logging in");
-            pd.show();
-            UserStore.login("test", "test", client, new KinveyClientCallback<User>() {
-                @Override
-                public void onSuccess(User result) {
-                    //successfully logged in
-                    pd.dismiss();
-                    sync();
-                }
-
-                @Override
-                public void onFailure(Throwable error) {
-                    UserStore.signUp("test", "test", client, new KinveyClientCallback<User>() {
-                        @Override
-                        public void onSuccess(User o) {
-                            getData();
-                            pd.dismiss();
-                        }
-
-                        @Override
-                        public void onFailure(Throwable error) {
-                            pd.dismiss();
-                            Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
-
-                        }
-                    });
-                }
-            });
-        } else {
-            getData();
-        }
-    }
 
 
     @Override
@@ -251,6 +198,11 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 }
 
             });
+        } else if (id == R.id.action_logout){
+            UserStore.logout(client);
+            Intent i = new Intent(this, LoginActivity.class);
+            i.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(i);
         }
         return super.onOptionsItemSelected(item);
     }
