@@ -10,6 +10,7 @@ import com.kinvey.android.Client;
 public class App extends MultiDexApplication {
 
     Client sharedClient;
+    boolean isFirstRun = true;
 
     @Override
     public void onCreate() {
@@ -19,5 +20,13 @@ public class App extends MultiDexApplication {
 
     public Client getSharedClient(){
         return sharedClient;
+    }
+
+    public boolean isFirstRun() {
+        return isFirstRun;
+    }
+
+    public void setFirstRun(boolean firstRun) {
+        isFirstRun = firstRun;
     }
 }

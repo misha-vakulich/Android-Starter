@@ -4,10 +4,7 @@
 
     </string>
     <string name="action_new">New</string>
-    <string name="action_sync">Sync</string>
-    <string name="action_push">Push</string>
-    <string name="action_pull">Pull</string>
-    <string name="action_purge">Purge</string>
+    <string name="action_get">Get</string>
     <string name="action_delete">delete</string>
 
 </resources>
