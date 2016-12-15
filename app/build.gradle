@@ -45,5 +45,5 @@ dependencies {
   compile 'com.android.support:appcompat-v7:23.2.0'
   compile 'com.android.support:design:23.2.0'
   compile 'com.android.support:multidex:1.0.1'
-  compile ':kinvey-android-2.10.9@aar'
+//  compile ':kinvey-android-2.10.9@aar'
 }

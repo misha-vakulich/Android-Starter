@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,6 +16,8 @@ import android.widget.Toast;
 import com.kinvey.android.AsyncAppData;
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
+import com.kinvey.android.callback.KinveyMICCallback;
+import com.kinvey.android.callback.KinveyUserCallback;
 import com.kinvey.java.User;
 import com.kinvey.java.auth.Credential;
 import com.kinvey.java.auth.CredentialManager;
@@ -30,6 +33,10 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
     Client client;
     BooksAdapter adapter;
     AsyncAppData<BookDTO> bookStore;
+    private static final String username = "test";
+    private static final String password = "test";
+    private static final String redirectURI = "kinveyAuthDemo://";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,6 +45,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(toolbar);
         client = ((App) getApplication()).getSharedClient();
+        client.enableDebugLogging();
         bookStore = client.appData(BookDTO.COLLECTION, BookDTO.class);
         if (client.user().isUserLoggedIn() && ((App) getApplication()).isFirstRun) {
             CredentialManager credentialManager = new CredentialManager(client.getStore());
@@ -57,7 +65,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             }
             ((App) getApplication()).setFirstRun(false);
         }
-        client.enableDebugLogging();
     }
 
     @Override
@@ -113,11 +120,38 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setIndeterminate(true);
             pd.setMessage("Logging in");
             pd.show();
-            client.user().login(new KinveyClientCallback<User>() {
+
+            /*client.user().login(username, password, new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User user) {
                     pd.dismiss();
-                    Toast.makeText(Shelf.this, "loged in", Toast.LENGTH_LONG).show();
+                    Toast.makeText(Shelf.this, "logged in", Toast.LENGTH_LONG).show();
+                    try {
+                        Credential currentCred = client.getStore().load(user.getId());
+                        Log.d(this.getClass().getName(), "refresh_token: " + currentCred.getRefreshToken());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    get();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
+                }
+            });*/
+            client.user().loginWithAuthorizationCodeAPI(username, password, redirectURI, new KinveyUserCallback() {
+                @Override
+                public void onSuccess(User user) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "logged in", Toast.LENGTH_LONG).show();
+                    try {
+                        Credential currentCred = client.getStore().load(user.getId());
+                        Log.d(this.getClass().getName(), "refresh_token: " + currentCred.getRefreshToken());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     get();
                 }
 
