@@ -5,6 +5,7 @@
     </string>
     <string name="action_new">New</string>
     <string name="action_get">Get</string>
+    <string name="action_logout">Logout</string>
     <string name="action_delete">delete</string>
 
 </resources>

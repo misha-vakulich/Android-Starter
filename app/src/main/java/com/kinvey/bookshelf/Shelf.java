@@ -15,18 +15,23 @@ import android.widget.Toast;
 
 import com.kinvey.android.AsyncAppData;
 import com.kinvey.android.Client;
+import com.kinvey.android.callback.KinveyClientBuilderCallback;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyMICCallback;
 import com.kinvey.android.callback.KinveyUserCallback;
+import com.kinvey.android.offline.SqlLiteOfflineStore;
 import com.kinvey.java.User;
 import com.kinvey.java.auth.Credential;
 import com.kinvey.java.auth.CredentialManager;
 import com.kinvey.java.core.KinveyClientCallback;
+import com.kinvey.java.offline.OfflinePolicy;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static java.security.AccessController.getContext;
 
 public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
@@ -47,6 +52,9 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         client = ((App) getApplication()).getSharedClient();
         client.enableDebugLogging();
         bookStore = client.appData(BookDTO.COLLECTION, BookDTO.class);
+
+        bookStore.setOffline(OfflinePolicy.LOCAL_FIRST, new SqlLiteOfflineStore<BookDTO>(getApplicationContext()));
+
         if (client.user().isUserLoggedIn() && ((App) getApplication()).isFirstRun) {
             CredentialManager credentialManager = new CredentialManager(client.getStore());
             Credential credential = null;
@@ -121,27 +129,7 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             pd.setMessage("Logging in");
             pd.show();
 
-            /*client.user().login(username, password, new KinveyClientCallback<User>() {
-                @Override
-                public void onSuccess(User user) {
-                    pd.dismiss();
-                    Toast.makeText(Shelf.this, "logged in", Toast.LENGTH_LONG).show();
-                    try {
-                        Credential currentCred = client.getStore().load(user.getId());
-                        Log.d(this.getClass().getName(), "refresh_token: " + currentCred.getRefreshToken());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    get();
-                }
-
-                @Override
-                public void onFailure(Throwable throwable) {
-                    pd.dismiss();
-                    Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
-                }
-            });*/
-            client.user().loginWithAuthorizationCodeAPI(username, password, redirectURI, new KinveyUserCallback() {
+            client.user().login(username, password, new KinveyClientCallback<User>() {
                 @Override
                 public void onSuccess(User user) {
                     pd.dismiss();
@@ -161,10 +149,47 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                     Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
                 }
             });
+            /*client.user().loginWithAuthorizationCodeAPI(username, password, redirectURI, new KinveyUserCallback() {
+                @Override
+                public void onSuccess(User user) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "logged in", Toast.LENGTH_LONG).show();
+                    try {
+                        Credential currentCred = client.getStore().load(user.getId());
+                        Log.d(this.getClass().getName(), "refresh_token: " + currentCred.getRefreshToken());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    enablePushNotification();
+                    get();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
+                }
+            });*/
         } else {
             get();
         }
     }
+
+/*    private void enablePushNotification() {
+        client.push().initialize(getApplication(), new KinveyClientCallback() {
+            @Override
+            public void onSuccess(Object o) {
+                Log.d(App.TAG, "enablePushNotification successful");
+                Log.d(App.TAG, "isPushEnabled: " + client.push().isPushEnabled());
+
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                Log.d(App.TAG, String.valueOf(throwable.fillInStackTrace()));
+            }
+        });
+    }*/
 
 
     @Override
@@ -189,8 +214,15 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             return true;
         } else if (id == R.id.action_get) {
             get();
+        } else if (id == R.id.action_logout) {
+            logout();
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    public void logout() {
+        client.user().logout();
+        Toast.makeText(Shelf.this, "logouted", Toast.LENGTH_LONG).show();
     }
 
 
