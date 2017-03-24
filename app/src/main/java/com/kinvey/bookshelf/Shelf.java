@@ -222,7 +222,8 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
 
     public void logout() {
         client.user().logout();
-        Toast.makeText(Shelf.this, "logouted", Toast.LENGTH_LONG).show();
+//        Toast.makeText(Shelf.this, "logout", Toast.LENGTH_LONG).show();
+        finish();
     }
 
 
