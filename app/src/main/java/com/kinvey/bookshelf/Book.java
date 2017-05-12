@@ -252,6 +252,16 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
             public void progressChanged(MediaHttpDownloader mediaHttpDownloader) throws IOException {
 
             }
+
+            @Override
+            public void onCancelled() {
+
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return false;
+            }
         }, new KinveyCachedClientCallback<FileMetaData>() {
             @Override
             public void onSuccess(FileMetaData fileMetaData) {
@@ -292,6 +302,16 @@ public class Book extends AppCompatActivity implements View.OnClickListener {
                 @Override
                 public void progressChanged(MediaHttpUploader mediaHttpUploader) throws IOException {
 
+                }
+
+                @Override
+                public void onCancelled() {
+
+                }
+
+                @Override
+                public boolean isCancelled() {
+                    return false;
                 }
             });
         } catch (IOException e) {

@@ -47,8 +47,5 @@ dependencies {
   compile 'com.android.support:appcompat-v7:23.2.0'
   compile 'com.android.support:design:23.2.0'
   compile 'com.android.support:multidex:1.0.1'
-  compile ':kinvey-android:3.0.0@aar'
-//  compile ':realm-android-library:0.88.0@aar'
-//  compile ':relinker:1.2RC@aar'
-  //compile project(':android-lib')
+  compile ':kinvey-android-3.0.0-BETA-03@aar'
 }

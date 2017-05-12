@@ -9,5 +9,6 @@
     <string name="action_pull">Pull</string>
     <string name="action_purge">Purge</string>
     <string name="action_delete">delete</string>
+    <string name="action_logout">Log out</string>
 
 </resources>

@@ -162,7 +162,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                         public void onFailure(Throwable error) {
                             pd.dismiss();
                             Toast.makeText(Shelf.this, "can't login to app", Toast.LENGTH_LONG).show();
-
                         }
                     });
                 }
@@ -250,6 +249,22 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                     Toast.makeText(Shelf.this, "purge failed", Toast.LENGTH_LONG).show();
                 }
 
+            });
+        } else if (id == R.id.action_logout){
+            pd.setMessage("Logout...");
+            pd.show();
+            UserStore.logout(client, new KinveyClientCallback<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "Log out success", Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onFailure(Throwable throwable) {
+                    pd.dismiss();
+                    Toast.makeText(Shelf.this, "Log out failed", Toast.LENGTH_LONG).show();
+                }
             });
         }
         return super.onOptionsItemSelected(item);
