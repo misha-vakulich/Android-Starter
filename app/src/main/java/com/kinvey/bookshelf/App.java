@@ -1,15 +1,15 @@
 package com.kinvey.bookshelf;
 
-import android.support.multidex.MultiDexApplication;
+import android.app.Application;
 
 import com.kinvey.android.Client;
 
 /**
  * Created by Prots on 3/15/16.
  */
-public class App extends MultiDexApplication {
+public class App extends Application {
 
-    Client sharedClient;
+    private Client sharedClient;
 
     @Override
     public void onCreate() {
