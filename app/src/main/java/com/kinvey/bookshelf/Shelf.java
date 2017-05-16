@@ -16,6 +16,7 @@ import android.widget.Toast;
 import com.kinvey.android.Client;
 import com.kinvey.android.callback.KinveyListCallback;
 import com.kinvey.android.callback.KinveyPurgeCallback;
+import com.kinvey.android.push.KinveyGCMService;
 import com.kinvey.android.store.DataStore;
 import com.kinvey.android.store.UserStore;
 import com.kinvey.android.sync.KinveyPullCallback;
@@ -266,6 +267,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                     Toast.makeText(Shelf.this, "Log out failed", Toast.LENGTH_LONG).show();
                 }
             });
+        } else if (id == R.id.action_reqister_unregister_push) {
+            if (client.push().isPushEnabled()) {
+                client.push().disablePush();
+            } else {
+                client.push().initialize(getApplication(), GCMService.class);
+            }
         }
         return super.onOptionsItemSelected(item);
     }

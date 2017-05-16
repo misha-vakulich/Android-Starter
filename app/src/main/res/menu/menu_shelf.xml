@@ -28,6 +28,11 @@
         android:title="@string/action_purge"
         app:showAsAction="never"/>
     <item
+        android:id="@+id/action_reqister_unregister_push"
+        android:orderInCategory="100"
+        android:title="@string/action_register_push"
+        app:showAsAction="ifRoom"/>
+    <item
         android:id="@+id/action_logout"
         android:orderInCategory="100"
         android:title="@string/action_logout"

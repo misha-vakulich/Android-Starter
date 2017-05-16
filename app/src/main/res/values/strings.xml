@@ -8,7 +8,8 @@
     <string name="action_push">Push</string>
     <string name="action_pull">Pull</string>
     <string name="action_purge">Purge</string>
-    <string name="action_delete">delete</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_register_push">Register/Unreqister Push</string>
     <string name="action_logout">Log out</string>
 
 </resources>
