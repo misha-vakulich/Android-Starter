@@ -15,23 +15,17 @@ import android.widget.Toast;
 
 import com.kinvey.android.AsyncAppData;
 import com.kinvey.android.Client;
-import com.kinvey.android.callback.KinveyClientBuilderCallback;
 import com.kinvey.android.callback.KinveyListCallback;
-import com.kinvey.android.callback.KinveyMICCallback;
-import com.kinvey.android.callback.KinveyUserCallback;
-import com.kinvey.android.offline.SqlLiteOfflineStore;
+import com.kinvey.bookshelf.push.GCMService;
 import com.kinvey.java.User;
 import com.kinvey.java.auth.Credential;
 import com.kinvey.java.auth.CredentialManager;
 import com.kinvey.java.core.KinveyClientCallback;
-import com.kinvey.java.offline.OfflinePolicy;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
-import static java.security.AccessController.getContext;
 
 public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickListener {
 
@@ -52,8 +46,6 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         client = ((App) getApplication()).getSharedClient();
         client.enableDebugLogging();
         bookStore = client.appData(BookDTO.COLLECTION, BookDTO.class);
-
-        bookStore.setOffline(OfflinePolicy.LOCAL_FIRST, new SqlLiteOfflineStore<BookDTO>(getApplicationContext()));
 
         if (client.user().isUserLoggedIn() && ((App) getApplication()).isFirstRun) {
             CredentialManager credentialManager = new CredentialManager(client.getStore());
@@ -175,12 +167,12 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
         }
     }
 
-/*    private void enablePushNotification() {
-        client.push().initialize(getApplication(), new KinveyClientCallback() {
+    private void enablePushNotification() {
+        client.push(GCMService.class).initialize(getApplication(), new KinveyClientCallback() {
             @Override
             public void onSuccess(Object o) {
                 Log.d(App.TAG, "enablePushNotification successful");
-                Log.d(App.TAG, "isPushEnabled: " + client.push().isPushEnabled());
+                Log.d(App.TAG, "isPushEnabled: " + client.push(GCMService.class).isPushEnabled());
 
             }
 
@@ -189,7 +181,23 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                 Log.d(App.TAG, String.valueOf(throwable.fillInStackTrace()));
             }
         });
-    }*/
+    }
+
+    private void disablePushNotification() {
+        client.push(GCMService.class).initialize(getApplication(), new KinveyClientCallback() {
+            @Override
+            public void onSuccess(Object o) {
+                Log.d(App.TAG, "enablePushNotification successful");
+                Log.d(App.TAG, "isPushEnabled: " + client.push(GCMService.class).isPushEnabled());
+
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                Log.d(App.TAG, String.valueOf(throwable.fillInStackTrace()));
+            }
+        });
+    }
 
 
     @Override
@@ -216,6 +224,10 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
             get();
         } else if (id == R.id.action_logout) {
             logout();
+        } else if (id == R.id.action_reqister_push) {
+            enablePushNotification();
+        } else if (id == R.id.action_unregister_push) {
+            disablePushNotification();
         }
         return super.onOptionsItemSelected(item);
     }

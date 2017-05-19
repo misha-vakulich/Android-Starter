@@ -7,5 +7,6 @@
     <string name="action_get">Get</string>
     <string name="action_logout">Logout</string>
     <string name="action_delete">delete</string>
-
+    <string name="action_register_push">Register Push</string>
+    <string name="action_unregister_push">Unreqister Push</string>
 </resources>

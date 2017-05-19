@@ -10,7 +10,7 @@ import android.support.v4.content.WakefulBroadcastReceiver;
 public class GCMReceiver extends WakefulBroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
-        ComponentName comp = new ComponentName(context.getPackageName(), com.kinvey.bookshelf.push.GCMReceiver.class.getName());
+        ComponentName comp = new ComponentName(context.getPackageName(), GCMService.class.getName());
         startWakefulService(context, (intent.setComponent(comp)));
         setResultCode(Activity.RESULT_OK);
     }
