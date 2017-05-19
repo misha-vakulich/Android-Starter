@@ -267,12 +267,10 @@ public class Shelf extends AppCompatActivity implements AdapterView.OnItemClickL
                     Toast.makeText(Shelf.this, "Log out failed", Toast.LENGTH_LONG).show();
                 }
             });
-        } else if (id == R.id.action_reqister_unregister_push) {
-            if (client.push().isPushEnabled()) {
-                client.push().disablePush();
-            } else {
-                client.push().initialize(getApplication(), GCMService.class);
-            }
+        } else if (id == R.id.action_reqister_push) {
+            client.push(GCMService.class).initialize(getApplication());
+        } else if (id == R.id.action_unregister_push) {
+            client.push(GCMService.class).disablePush();
         }
         return super.onOptionsItemSelected(item);
     }
